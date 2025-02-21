@@ -1,12 +1,12 @@
-import multer from "multer";
-import { PDFDocument } from "pdf-lib";
-import mammoth from "mammoth";
-import {Readable} from "stream";
+const multer = require("multer");
+const { PDFDocument } = require("pdf-lib");
+const mammoth = require("mammoth");
+const {Readable} = require("stream");
 
 const storage = multer.memoryStorage();
 const uploadFile = multer({storage}).single("file");
 
-export const convertPdfToWord = async (req, res) => {
+const convertPdfToWord = async (req, res) => {
     if(!req.file) {
         return res.status(400).json({message: "No se subió ningún archivo"});
     }
@@ -31,3 +31,5 @@ export const convertPdfToWord = async (req, res) => {
         res.status(500).json({message: "Hubo un error al convertir el archivo"});
     }
 }
+
+module.exports = {convertPdfToWord, uploadFile};
