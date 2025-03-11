@@ -3,6 +3,7 @@ const multer = require("multer");
 const { convertPdfToWord } = require("../controllers/pdfToWordController");
 const { convertPdfToExcel } = require("../controllers/pdfToExcelController");
 const { convertPdfToPowerPoint } = require("../controllers/pdfToPowerPointController");
+const { convertPdfToJPG } = require ("../controllers/pdfToJPGController");
 const router = express.Router();
 
 // Configuración para cargar archivos
@@ -21,5 +22,6 @@ const upload = multer({ storage });
 router.post("/convertWord", upload.single("file"), convertPdfToWord);
 router.post("/convertExcel", upload.single("file"), convertPdfToExcel);
 router.post("/convertPowerPoint", upload.single("file"), convertPdfToPowerPoint);
+router.post("/convertJPG", upload.single("file"), convertPdfToJPG);
 
 module.exports = router;
