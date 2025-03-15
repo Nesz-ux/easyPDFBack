@@ -16,6 +16,31 @@ const fs = require("fs");
 const path = require("path");
 
 exports.convertPdfToJPG = async (req, res) => {
+  const deleteFilesAfterDelay = (files, delay) => {
+    setTimeout(async () => {
+      try {
+        await Promise.all(
+          files.map(async (file) => {
+            try {
+              const filePath = path.join(__dirname, "../uploads/", file);
+              await fs.promises.access(filePath); // Verificar si el archivo existe
+              await fs.promises.unlink(filePath);
+              console.log(`Archivo eliminado: ${filePath}`);
+            } catch (err) {
+              if (err.code === "ENOENT") {
+                console.warn(`Archivo ya fue eliminado: ${filePath}`);
+              } else {
+                console.error(`Error eliminando ${filePath}:`, err);
+              }
+            }
+          })
+        );
+      } catch (err) {
+        console.error("Error eliminando archivos:", err);
+      }
+    }, delay);
+  };
+
   if (!req.file) {
     return res.status(400).json({ message: "No se ha cargado ningún archivo" });
   }
@@ -76,19 +101,25 @@ exports.convertPdfToJPG = async (req, res) => {
       const outputFileName = `${
         path.parse(req.file.originalname).name
       }-${i}.jpeg`;
-      const outputFilePath = path.join(__dirname, "../uploads", outputFileName);
-      const publicUrl = `/uploads/${outputFileName}`;
-      outputFilePaths.push(publicUrl);
+      const outputFilePath = path.join(
+        __dirname,
+        "../uploads/",
+        outputFileName
+      );
+      outputFilePaths.push(outputFileName);
 
       console.log(`Descargando archivo ${outputFileName}...`);
+
       const streamAsset = await pdfServices.getContent({
         asset: resultAssets[i],
       });
 
-      await new Promise((resolve, reject) => {
-        const outputStream = fs.createWriteStream(outputFilePath);
-        streamAsset.readStream.pipe(outputStream);
+      const outputStream = fs.createWriteStream(outputFilePath);
 
+      streamAsset.readStream.pipe(outputStream);
+
+      // Esperamos que la escritura del archivo se complete
+      await new Promise((resolve, reject) => {
         outputStream.on("finish", () => {
           console.log(`Archivo ${outputFileName} guardado correctamente.`);
           resolve();
@@ -99,18 +130,21 @@ exports.convertPdfToJPG = async (req, res) => {
           reject(err);
         });
       });
-
-      // Solo eliminar el archivo PDF original si ya no se necesita
-      try {
-        fs.unlinkSync(filePath);
-        console.log(`Archivo PDF ${filePath} eliminado.`);
-      } catch (err) {
-        console.error(`Error eliminando ${filePath}:`, err);
-      }
     }
 
-    // Enviar la respuesta solo después de terminar el proceso
+    // Eliminar el archivo PDF original después de la conversión
+    try {
+      await fs.promises.unlink(filePath);
+      console.log(`Archivo PDF ${filePath} eliminado.`);
+    } catch (err) {
+      console.error(`Error eliminando ${filePath}:`, err);
+    }
+
+    // Enviar la respuesta después de que todo el proceso termine
     res.json({ message: "Archivos convertidos con éxito", outputFilePaths });
+
+    // Programar la eliminación de los archivos en 10 segundos
+    deleteFilesAfterDelay(outputFilePaths, 120 * 1000);
   } catch (err) {
     if (
       err instanceof SDKError ||
